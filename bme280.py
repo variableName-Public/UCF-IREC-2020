@@ -159,7 +159,7 @@ def readBME280All(addr=DEVICE):
 
 def main():
 
-  i = 1023
+  i = 0
   j = 0
   lastJ = 0
   deltaPressure = 0
@@ -172,7 +172,7 @@ def main():
   print ("Chip ID     :", chip_id)
   print ("Version     :", chip_version)
 
-  while(i > 721):
+  while(i < 10000):
     temperature,pressure,humidity = readBME280All()
     print()    
     print ("Temperature : ", temperature, "C")
@@ -180,7 +180,7 @@ def main():
     print ("Humidity : ", humidity, "%")
     print ("Rough Altitude : ", roughAlt, "ft")
     print()
-    if (i == 1023):
+    if (i == 0):
         basePressure = pressure
         lastPressure = basePressure
     if (lastJ != j):
@@ -188,12 +188,12 @@ def main():
       lastPressure = pressure;
       roughAlt += deltaPressure / 30;
     j = i // 100
-    print ( "i is equal to : ", i)
+    print ( "J is equal to : ", j)
     if (roughAlt > 50):
       launchCondition.someFUNC(1)
     else:
       launchCondition.someFUNC(0)
-    i = pressure
+    i += 1
 
 
 if __name__=="__main__":
