@@ -24,6 +24,7 @@ import launchCondition
 from ctypes import c_short
 from ctypes import c_byte
 from ctypes import c_ubyte
+from array import *
 
 DEVICE = 0x76 # Default device I2C address
 
@@ -157,22 +158,63 @@ def readBME280All(addr=DEVICE):
 
   return temperature/100.0,pressure/100.0,humidity
 
+def densityAlt(T, P):
+  P_SL = 1013.25 # hPa
+  T_SL = 288.15 # K
+  G_AMMA = 0.0065 # K / m
+  R = 8.3144598 # J / mol * K 
+  g = 9.80665 # m / s^2
+  M = 0.028964 # kg / mol 
+  DA = 0 # h
+
+  DA = ((T_SL / G_AMMA) * (1 - ((P / P_SL) / ((T + 273.15) / T_SL))**((G_AMMA * R) / ((g * M) - (G_AMMA * R)))))
+
+  return DA
+
+def simpleAlt(P):
+  SL = 101325
+  e = 5.25588
+  mV = ((2.25577 * 10**-5)**e)
+  h = 0
+
+  h = (1 - P * (mV**e / SL))**(1/e)
+
+  return h
+
+def emanuelAlt(T, P):
+  P_0 = 1013.25
+  mV = (1 / 5.257)
+  G_AMMA = 0.0065
+  kM = 273.15
+  h = 0
+
+  h = (((P_0 / P)**mV - 1) * (T + kM) / G_AMMA)
+    
+  return h
+
 def main():
 
   i = 0
   j = 0
+  number = 10000
+  arrayDensityAlt = array('f',[number])
+  arraySimpleAlt = array('f', [number])
+  arrayEmanuelAlt = array('f', [number])
+  f = open('densitAltOutput.txt', 'w')
+  g = open('simpleAltOutput.txt', 'w')
+  h = open('emanuelAltOutput.txt', 'w')
   lastJ = 0
   deltaPressure = 0
   basePressure = 0
   lastPressure = 0
-  maxPressure = 0
+  #maxPressure = 0
   roughAlt = 0
 
   (chip_id, chip_version) = readBME280ID()
   print ("Chip ID     :", chip_id)
   print ("Version     :", chip_version)
 
-  while(i < 10000):
+  while(i < number):
     temperature,pressure,humidity = readBME280All()
     print()    
     print ("Temperature : ", temperature, "C")
@@ -180,6 +222,12 @@ def main():
     print ("Humidity : ", humidity, "%")
     print ("Rough Altitude : ", roughAlt, "ft")
     print()
+    arrayDensityAlt.insert(i,densityAlt(temperature, pressure))
+    arraySimpleAlt.insert(i,simpleAlt(pressure))
+    arrayEmanuelAlt.insert(i,emanuelAlt(temperature, pressure))
+    f.write("Temp : " + str(temperature) + " C\n" + "Pressure : " + str(pressure) + " hPa\n" + "Humidity : " + str(humidity) + " %\n" + "Density Altitude : " + str(arrayDensityAlt[i]) + "m\n\n")
+    g.write("Temp : " + str(temperature) + " C\n" + "Pressure : " + str(pressure) + " hPa\n" + "Humidity : " + str(humidity) + " %\n" + "Simple Altitude : " + str(arraySimpleAlt[i]) + "m\n\n")
+    h.write("Temp : " + str(temperature) + " C\n" + "Pressure : " + str(pressure) + " hPa\n" + "Humidity : " + str(humidity) + " %\n" + "Emanuel Altitude : " + str(arrayEmanuelAlt[i]) + "m\n\n")
     if (i == 0):
         basePressure = pressure
         lastPressure = basePressure
@@ -189,11 +237,15 @@ def main():
       roughAlt += deltaPressure / 30;
     j = i // 100
     print ( "J is equal to : ", j)
-    if (roughAlt > 50):
-      launchCondition.someFUNC(1)
-    else:
-      launchCondition.someFUNC(0)
+    #if (roughAlt > 50):
+      #launchCondition.someFUNC(1)
+    #else:
+      #launchCondition.someFUNC(0)
     i += 1
+
+  f.close()
+  g.close()
+  h.close()
 
 
 if __name__=="__main__":
